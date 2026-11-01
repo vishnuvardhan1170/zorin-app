@@ -1,9 +1,9 @@
 import os
 
 from flask import Flask, jsonify, render_template, request
+from prometheus_flask_exporter import PrometheusMetrics
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-from prometheus_flask_exporter import PrometheusMetrics
 
 app = Flask(__name__)
 metrics = PrometheusMetrics(app)
