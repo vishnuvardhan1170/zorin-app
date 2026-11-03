@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/gh-oidc-zorin
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.event.workflow_run.head_sha }} .
+          docker push ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.event.workflow_run.head_sha }}
+
+      - name: Image scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.event.workflow_run.head_sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+
+# Create OIDC provider via AWS IAM Console
+# Provider type as OpenID Connect
+# Provider URL: https://token.actions.githubusercontent.com, Audience: sts.amazonaws.com
+
+# Create IAM Role
+# Trusted entity -> Web Identity -> OIDC provider -> audience: sts.amazonaws.com
+# Attach ECR permissions -> select AmazonEC2ContainerRegistryPowerUser (for Dev) or ecr:GetAuthorizationToken (for production)

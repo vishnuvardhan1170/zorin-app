@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  update-image:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update image tag in gitops repo
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/vishnuvardhan1170/zorin-gitops.git gitops-repo
+          cd gitops-repo
+          sed -i "s|repository: .*|repository: ${ECR_REGISTRY}/zorin-app|" helm/values.yaml
+          sed -i "s|tag: .*|tag: \"${IMAGE_TAG}\"|" helm/values.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/values.yaml
+          git commit -m "chore: push zorin-app to ${IMAGE_TAG}"
+          git push
