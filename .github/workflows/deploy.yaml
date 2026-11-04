@@ -25,6 +25,11 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd  # v2.1.7
 
+      - name: Install yq
+        run: |
+          curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+
       - name: Update image tag in gitops repo
         env:
           GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}

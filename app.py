@@ -1,4 +1,5 @@
 import os
+import sys
 
 from flask import Flask, jsonify, render_template, request
 from prometheus_flask_exporter import PrometheusMetrics
@@ -28,11 +29,12 @@ def insert_user(name: str, age: int) -> str:
     return str(result.inserted_id)
 
 
-def get_all_names(limit: int = 100) -> list[str]:
+def get_all_names(limit: int = 100, after: str = "") -> list[str]:
+    query = {"name": {"$gt": after}} if after else {}
     return [
         doc["name"]
-        for doc in users_collection.find({}, {"name": 1, "_id": 0}).limit(limit)
-    ]   
+        for doc in users_collection.find(query, {"name": 1, "_id": 0}).sort("name", 1).limit(limit)
+    ]
 
 
 def get_all_users() -> list[dict]:
@@ -41,10 +43,9 @@ def get_all_users() -> list[dict]:
 
 @app.route("/")
 def index():
-    limit = min(int(request.args.get("limit", 50)), 200)  # cap at 200
-    after = request.args.get("after", "")
+    limit = min(int(request.args.get("limit", 50)), 200)
     try:
-        names = get_all_names(limit=limit, after=after)
+        names = get_all_names(limit=limit)
         return render_template("index.html", names=names)
     except PyMongoError:
         app.logger.exception("Error connecting to database")
