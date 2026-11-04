@@ -38,4 +38,4 @@ RUN python -m pip install \
 
 COPY . .
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "4", "app:app"]   

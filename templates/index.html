@@ -51,7 +51,12 @@
         document.getElementById("name").value = "";
         document.getElementById("age").value  = "";
         const list = document.getElementById("name-list");
-        list.innerHTML = data.names.map(n => `<li>${n}</li>`).join("");
+        list.innerHTML = "";
+        data.names.forEach(n => {
+        const li = document.createElement("li");
+        li.textContent = n;
+        list.appendChild(li);
+});
       } else {
         msg.style.color = "#f87171";
         msg.textContent = data.error;

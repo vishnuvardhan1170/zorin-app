@@ -8,8 +8,16 @@ from pymongo.errors import PyMongoError
 app = Flask(__name__)
 metrics = PrometheusMetrics(app)
 
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-MONGO_DB = os.environ.get("MONGO_DB", "zorin")
+MONGO_URI = os.environ.get("MONGO_URI")
+MONGO_DB  = os.environ.get("MONGO_DB", "zorin")
+
+if not MONGO_URI:
+    # Local dev fallback — unauthenticated, localhost only
+    if os.environ.get("FLASK_ENV", "development") == "production":
+        print("FATAL: MONGO_URI must be set in production. Refusing to start.", file=sys.stderr)
+        sys.exit(1)
+    MONGO_URI = "mongodb://localhost:27017/"
+
 client: MongoClient = MongoClient(MONGO_URI)
 db = client[MONGO_DB]
 users_collection = db["users"]
@@ -20,8 +28,11 @@ def insert_user(name: str, age: int) -> str:
     return str(result.inserted_id)
 
 
-def get_all_names() -> list[str]:
-    return [doc["name"] for doc in users_collection.find({}, {"name": 1, "_id": 0})]
+def get_all_names(limit: int = 100) -> list[str]:
+    return [
+        doc["name"]
+        for doc in users_collection.find({}, {"name": 1, "_id": 0}).limit(limit)
+    ]   
 
 
 def get_all_users() -> list[dict]:
@@ -30,8 +41,10 @@ def get_all_users() -> list[dict]:
 
 @app.route("/")
 def index():
+    limit = min(int(request.args.get("limit", 50)), 200)  # cap at 200
+    after = request.args.get("after", "")
     try:
-        names = get_all_names()
+        names = get_all_names(limit=limit, after=after)
         return render_template("index.html", names=names)
     except PyMongoError:
         app.logger.exception("Error connecting to database")
@@ -40,21 +53,40 @@ def index():
 
 @app.route("/add", methods=["POST"])
 def add_user():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+
+    if data is None:
+        return jsonify({"error": "Request body must be valid JSON"}), 400
+
     name = data.get("name", "").strip()
     age = data.get("age")
 
-    if not name or age is None:
-        return jsonify({"error": "Name and age are required"}), 400
+    # --- name validation ---
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+    if len(name) > 100:
+        return jsonify({"error": "Name must be 100 characters or fewer"}), 400
+
+    # --- age validation ---
+    if age is None:
+        return jsonify({"error": "Age is required"}), 400
+    if isinstance(age, bool):
+        return jsonify({"error": "Age must be an integer"}), 400
+    try:
+        age = int(age)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Age must be an integer"}), 400
+    if age < 0 or age > 150:
+        return jsonify({"error": "Age must be between 0 and 150"}), 400
 
     try:
-        insert_user(name, int(age))
+        insert_user(name, age)
         return jsonify(
             {"message": f"Successfully inserted: {name}", "names": get_all_names()}
         )
     except PyMongoError:
         app.logger.exception("Database error while adding user")
-        return jsonify({"error": "Database error"}), 500
+        return jsonify({"error": "Database error"}), 500   
 
 
 if __name__ == "__main__":
