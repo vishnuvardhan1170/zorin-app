@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -v
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.11"
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+      - name: Bandit
+        run: |
+          pip install bandit
+          bandit -r . -x tests/ -ll
+
+  build:
+    needs: [lint, test, security-scan]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/gh-oidc-zorin
+          aws-region: ap-south-1
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c66567f42f9384779290529bd  # v2.1.7
+
+      - name: Build
+        run: docker build -t ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.sha }} .
+
+      - name: Image scan (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+
+      - name: Push
+        run: docker push ${{ steps.ecr.outputs.registry }}/zorin-app:${{ github.sha }}
+
+
+
+# Create OIDC provider via AWS IAM Console
+# Provider type as OpenID Connect
+# Provider URL: https://token.actions.githubusercontent.com, Audience: sts.amazonaws.com
+
+# Create IAM Role
+# Trusted entity -> Web Identity -> OIDC provider -> audience: sts.amazonaws.com
+# Attach ECR permissions -> select AmazonEC2ContainerRegistryPowerUser (for Dev) or ecr:GetAuthorizationToken (for production)
