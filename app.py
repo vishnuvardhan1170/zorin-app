@@ -44,8 +44,9 @@ def get_all_users() -> list[dict]:
 @app.route("/")
 def index():
     limit = min(int(request.args.get("limit", 50)), 200)
+    after = request.args.get("after", "")
     try:
-        names = get_all_names(limit=limit)
+        names = get_all_names(limit=limit, after=after)
         return render_template("index.html", names=names)
     except PyMongoError:
         app.logger.exception("Error connecting to database")
@@ -87,7 +88,16 @@ def add_user():
         )
     except PyMongoError:
         app.logger.exception("Database error while adding user")
-        return jsonify({"error": "Database error"}), 500   
+        return jsonify({"error": "Database error"}), 500
+
+
+@app.route("/health")
+def health():
+    try:
+        users_collection.command("ping")
+        return jsonify({"status": "healthy"}), 200
+    except PyMongoError:
+        return jsonify({"status": "unhealthy"}), 503
 
 
 if __name__ == "__main__":
