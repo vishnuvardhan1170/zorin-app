@@ -13,7 +13,7 @@
           "token.actions.githubusercontent.com:iss": "https://token.actions.githubusercontent.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:vishnuvardhan1170/zorin-app:ref:heads/main"
+          "token.actions.githubusercontent.com:sub": "repo:vishnuvardhan1170/zorin-app:ref:refs/heads/main"
         }
       }
     }
