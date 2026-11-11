@@ -43,7 +43,10 @@ def get_all_users() -> list[dict]:
 
 @app.route("/")
 def index():
-    limit = min(int(request.args.get("limit", 50)), 200)
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
     after = request.args.get("after", "")
     try:
         names = get_all_names(limit=limit, after=after)

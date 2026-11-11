@@ -14,15 +14,12 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v3
         with:
-          role-to-assume: arn:aws:iam::882088608073:role/github-actions-ecr-push
-          aws-region: ap-south-1
-
-      - name: Login to ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd
+          workload_identity_provider: "projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "deploy-bot@PROJECT_ID.iam.gserviceaccount.com"
 
       - name: Install yq
         run: |
@@ -33,14 +30,13 @@ jobs:
         env:
           GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
           IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           git clone https://x-access-token:${GITOPS_TOKEN}@github.com/vishnuvardhan1170/zorin-gitops.git gitops-repo
           cd gitops-repo
-          yq -i ".image.repository = \"${ECR_REGISTRY}/zorin-app\"" helm/values.yaml
+          yq -i ".image.repository = \"asia-south1-docker.pkg.dev/PROJECT_ID/zorin/zorin-app\"" helm/values.yaml
           yq -i ".image.tag = \"${IMAGE_TAG}\"" helm/values.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add helm/values.yaml
           git commit -m "chore: update zorin-app to ${IMAGE_TAG}"
-          git push
+          git push   
