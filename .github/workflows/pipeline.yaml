@@ -59,7 +59,7 @@ jobs:
         with:
           project_id: zorin-demo-514410
           workload_identity_provider: "projects/927186636170/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-          service_account: "ci-bot@zorin-demo-514410.iam.gserviceaccount.com"
+          service_account: "927186636170-compute@developer.gserviceaccount.com"
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
