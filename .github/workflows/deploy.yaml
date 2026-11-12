@@ -26,7 +26,7 @@ jobs:
         run: |
           git clone https://x-access-token:${GITOPS_TOKEN}@github.com/vishnuvardhan1170/zorin-gitops.git gitops-repo
           cd gitops-repo
-          yq -i '.image.repository = "asia-south1-docker.pkg.dev/your-gcp-project/zorin/zorin-app"' helm/values.yaml
+          yq -i '.image.repository = "asia-south1-docker.pkg.dev/zorin-demo-514410/zorin/zorin-app"' helm/values.yaml
           yq -i ".image.tag = \"${IMAGE_TAG}\"" helm/values.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
