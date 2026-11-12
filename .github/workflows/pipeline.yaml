@@ -63,7 +63,8 @@ jobs:
 
       - name: Build
         run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
+          echo '{"username":"_json_key","password":"'"$(cat "${GOOGLE_APPLICATION_CREDENTIALS}")"'"}' | \
+          docker login asia-south1-docker.pkg.dev -u _json_key --password-stdin
           docker build -t asia-south1-docker.pkg.dev/zorin-demo-514410/zorin/zorin-app:${{ github.sha }} .
 
       - name: Image scan (Trivy)
