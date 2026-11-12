@@ -61,15 +61,6 @@ jobs:
           workload_identity_provider: "projects/927186636170/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
           service_account: "927186636170-compute@developer.gserviceaccount.com"
 
-      - name: Install gcloud CLI
-        run: |
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
-          sudo apt-get update && sudo apt-get install -y google-cloud-cli
-
-      - name: Configure gcloud
-        run: gcloud config set project zorin-demo-514410
-
       - name: Build
         run: |
           gcloud auth configure-docker asia-south1-docker.pkg.dev
